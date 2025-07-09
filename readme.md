@@ -4,7 +4,7 @@ This project implements an **evolutionary algorithm** to optimize a financial in
 
 ## ✨ Objective
 
-- **Maximize portfolio returns** using a real-coded evolutionary algorithm.
+- **Maximize portfolio returns** using a custom made evolutionary algorithm.
 - **Limit risk** based on historical volatility.
 - **Ensure diversification** by setting constraints on the proportion invested in each asset.
 - **Compare portfolio performance** against real-world financial benchmarks (e.g., Vanguard ETFs).
