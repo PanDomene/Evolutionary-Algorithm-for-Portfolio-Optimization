@@ -144,7 +144,6 @@ ev_alg.run()
 - Update metrics to use test results instead of training returns and risks.
 - Update results.ipynb after updating metrics, and try to beat the benchmark.
 - Update results in readme.md after the previous 2 points.
-- Create requirements.txt
 - Add colaborators
 - Delete `Proyecto_Computo_Evolutivo.ipynb` when done.
 - Analyze whether portfolio risk during training correlates to volatility during testing period.
