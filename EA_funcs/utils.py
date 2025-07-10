@@ -1,5 +1,6 @@
 import yfinance as yf
 import pandas as pd
+import numpy as np
 import os
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -32,6 +33,7 @@ def get_historical_data(tickers, start, end):
 
 
 
+
 all_data = pd.read_csv(f'{CURRENT_DIR}/../data/closing_prices.csv', index_col=0, parse_dates=True)
 
 ####### National capitals#######
@@ -59,10 +61,3 @@ tickers_CETES = ['CETES365']
 
 #### All tickers #####
 tickers = tickers_NC + tickers_F + tickers_IC + tickers_BONDDIA + tickers_ENERFIN
-
-
-daily_returns = all_data.pct_change().dropna()
-anual_returns = daily_returns.sum() / len(daily_returns) * 252
-risks = daily_returns.std()
-covariance_matrix = daily_returns.cov()
-correlation_matrix = daily_returns.corr()

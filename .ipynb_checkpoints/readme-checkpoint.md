@@ -84,7 +84,7 @@ f(w) = (1 - δ) * Return(w) - δ * Risk(w)
 portfolio-optimization/
 ├── data/
 ├── notebooks/
-├── src/
+├── EA_funcs/
 ├── results/
 ├── requirements.txt
 ├── README.md
@@ -99,19 +99,25 @@ portfolio-optimization/
 pip install -r requirements.txt
 ```
 
-2. Import module as:
+2. Install module:
+
+```bash
+pip install -e . # -e if you want to edit the source code.
+```
+
+4. Import module as:
 
 ```python
 import EA_funcs as ea # or any other alias 
 ```
 
-3. For a given set of `tickers` and `start`/`end` dates, load the closing prices with
+4. For a given set of `tickers` and `start`/`end` dates, load the closing prices with
 
 ```python
 closing_prices = ea.get_historical_data(tickers, start, end)
 ```
 
-4. Initialize and run the evolutionary algorithm:
+5. Initialize and run the evolutionary algorithm:
 
 ```python
 ev_alg = ea.EA(closing_prices) # Set any optional parameters
@@ -131,3 +137,14 @@ ev_alg.run()
 - Eiben & Smith (2015). Introduction to Evolutionary Computing.
 - Yahoo Finance API via `yfinance`
 
+
+## TODO
+
+- Make readme in spanish.
+- Update metrics to use test results instead of training returns and risks.
+- Update results.ipynb after updating metrics, and try to beat the benchmark.
+- Update results in readme.md after the previous 2 points.
+- Create requirements.txt
+- Add colaborators
+- Delete `Proyecto_Computo_Evolutivo.ipynb` when done.
+- Analyze whether portfolio risk during training correlates to volatility during testing period.

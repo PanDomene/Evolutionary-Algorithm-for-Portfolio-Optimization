@@ -36,7 +36,7 @@ def MBF(algorithm, data, runs=10, generations=50, **kwargs):
 
 
 
-def AES_SR(algorithm, data, solution=0.26, max_risk=0.18,
+def AES_SR(algorithm, data, solution=0.26, max_risk=18,
            runs=10, max_gens=50, **kwargs):
     """
     Calculate the Average Fitness Evaluations to Solution (AES) and the Success
@@ -46,6 +46,8 @@ def AES_SR(algorithm, data, solution=0.26, max_risk=0.18,
     - algorithm (class): Evolutionary algorithm class.
     - data (pd.DataFrame): Historical closing prices.
     - solution (float, optional): Target solution value (default is 0.26).
+    - max_risk (float, optional): Maximum risk (expressed as a %) allowed for 
+      the portfolio to be considered a success (default is 18%).
     - runs (int, optional): Number of runs (default is 10).
     - max_gens (int, optional): Maximum number of generations to run. If the
       solution is not found within this number of generations, that run's
@@ -187,11 +189,22 @@ def time_robustness(algorithm, data, periods=5,
 
 
 def returns_to_risk_ratio(ticks, n, display=False):
+    """
+    Selects the top N assets with the highest return-to-risk ratio.
 
+    Parameters:
+    - ticks (list): List of asset tickers to consider.
+    - n (int): Number of top assets to select.
+    - display (bool): If True, prints the resulting DataFrame (default: False).
+
+    Returns:
+    - numpy.ndarray: Tickers of the top N assets.
+    - pandas.DataFrame: Return-to-risk ratios and annual returns of the top N assets.
+    """
     national = u.all_data[ticks]
-    daily_returns = u.daily_returns[ticks]
-    anual_returns = u.anual_returns[ticks]
-    risks = u.risks[ticks]
+    daily_returns = national.pct_change().dropna()
+    anual_returns = daily_returns.mean() * 252
+    risks = daily_returns.std()
     top_n = (anual_returns/risks).sort_values(ascending=False)[:n]
     top_n_returns = anual_returns[top_n.index]
     top = {"return/risk": top_n, "anual return": top_n_returns}
@@ -199,4 +212,4 @@ def returns_to_risk_ratio(ticks, n, display=False):
     if display:
         print(top)
     
-    return top_n.index.values 
+    return top_n.index.values, top

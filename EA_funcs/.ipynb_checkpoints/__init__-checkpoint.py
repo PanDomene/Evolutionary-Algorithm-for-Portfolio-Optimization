@@ -1,3 +1,4 @@
-from .evolutionary_algorithm import *
+from .algorithms import *
 from .metrics import *
 from .utils import *
+from .testing import *

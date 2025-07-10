@@ -20,6 +20,8 @@ class EA:
         - max_w (float, optional): Maximum weight per asset. (default 0.1)
         - delta (float, optional): Fitness weight constant. (default 0.5)
         - alpha (float, optional): Blend crossover constant. (default 0.5)
+        - testing (bool, optional): If true, keeps track of several quantities
+          for plotting, evaluating and debugging. (default True)
         """
         self.stats_(data) # Expected anual returns returns and covariance matrix
         self.pop_size = pop_size # Population size
@@ -33,7 +35,7 @@ class EA:
         self.n_assets = data.shape[1] # Number of assets
         self.population = self.initialize_population_()
         self.fitness_evaluations = 0
-        self.pop_fitness = self.get_fitness(self.population[:,:-1])
+        self.pop_fitness = self.get_fitness(self.population)
 
         # For plotting and evaluating model performance and robustness.
         self.testing = testing
@@ -68,6 +70,11 @@ class EA:
         Returns:
         - float: Portfolio volatility.
         """
+
+        # If there is a tournament size gene
+        if chromosome.shape[0] != self.cov_matrix.shape[1]:
+            chromosome = chromosome[:-1] # ignore it
+            
         return np.sqrt(252*chromosome.T @ self.cov_matrix @ chromosome)
 
     def weight_penalty_(self, chromosome, w=20):
@@ -98,6 +105,11 @@ class EA:
         - tuple: Fitness value (f), expected returns for the portfolio (f1),
         and portfolio volatility (f2).
         """
+
+        # If there is a tournament size gene
+        if chromosome.shape[0] != self.cov_matrix.shape[0]:
+            chromosome = chromosome[:-1] # ignore it
+        
         self.fitness_evaluations += 1 # For performance evaluation (AES, SR)
         f1 = chromosome @ self.expected_returns # Expected portfolio returns.
         f2 = self.volatility(chromosome) # The risk of the portfolio.
