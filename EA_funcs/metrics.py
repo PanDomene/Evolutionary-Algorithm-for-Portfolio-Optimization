@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from . import data as dta
 from .algorithms import EA
 
-def MBF(train_data, test_data, runs=10, generations=50, **kwargs):
+def MBF(train_data, test_data, runs=10, generations=50, verbose=True, **kwargs):
     """
     Evaluate the Mean Best Fitness (MBF) on the test set across multiple runs.
 
@@ -33,9 +33,9 @@ def MBF(train_data, test_data, runs=10, generations=50, **kwargs):
 
         actual_returns[i] = actual_return
         risks[i] = risk
-
-    print(f'Mean Return at the end of testing period: {round(100 * actual_returns.mean(), 2)}%')
-    print(f'Mean Risk: {round(100 * risks.mean(), 2)}%')
+    if verbose:
+        print(f'Mean Return at the end of testing period: {round(100 * actual_returns.mean(), 2)}%')
+        print(f'Mean Risk: {round(100 * risks.mean(), 2)}%')
 
     return actual_returns, risks
 
