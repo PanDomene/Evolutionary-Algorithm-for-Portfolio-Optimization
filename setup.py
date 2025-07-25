@@ -8,6 +8,7 @@ setup(
         "numpy",
         "pandas",
         "matplotlib",
-        "yfinance"
+        "yfinance",
+        "tqdm"
     ],
 )

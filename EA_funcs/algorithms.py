@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-from tqdm.notebook import trange, tqdm
 from scipy.optimize import minimize
 from scipy.cluster.hierarchy import linkage
 from scipy.spatial.distance import squareform
@@ -31,6 +30,7 @@ class EA:
         split = int((1 - validation_split) * len(data))
         self.train_data = data[:split]
         self.val_data = data[split:]
+        self.val_returns_pct = self.val_data.pct_change().dropna().values
         self.stats_(self.train_data) # Expected anual returns returns and covariance matrix
         self.pop_size = pop_size # Population size
         self.lambda_ = lambda_ # Number of offspring per generation
@@ -63,29 +63,21 @@ class EA:
         Args:
         - data (pd.DataFrame): Historical closing prices.
         """
-        # Daily closing price % change.
-        daily_returns = data.pct_change().dropna()
-        # Expected anual return.
-        self.expected_returns = (daily_returns.mean()*252).values
-        # Covariance matrix.
-        self.cov_matrix = daily_returns.cov().to_numpy()
+        daily_returns = data.pct_change().dropna().values # daily % returns
+        self.expected_returns = np.mean(daily_returns, axis=0) * 252 # Expected annual returns 
+        self.cov_matrix = np.cov(daily_returns.T) # Covariance matrix of daily returns
 
-    def volatility(self, chromosome):
+    def volatility(self, weights):
         """
-        Calculate the volatility (risk) of the portfolio.
-
+        Compute annualized volatility of a portfolio.
+        
         Args:
-        - chromosome (np.ndarray): Portfolio weights.
-
+            weights (np.ndarray): Vector of portfolio weights (no gene).
+        
         Returns:
-        - float: Portfolio volatility.
+            float: Annualized volatility.
         """
-
-        # If there is a tournament size gene
-        if chromosome.shape[0] > self.cov_matrix.shape[1]:
-            chromosome = chromosome[:-1] # ignore it
-
-        return np.sqrt(252*chromosome.T @ self.cov_matrix @ chromosome)
+        return np.sqrt(252 * weights @ self.cov_matrix @ weights)
 
     def weight_penalty_(self, chromosome, w=40):
         """
@@ -125,8 +117,7 @@ class EA:
         risk = self.volatility(chromosome) # The risk of the portfolio.
 
         # Return from validation data
-        val_returns = self.val_data.pct_change().dropna()
-        val_returns = val_returns @ chromosome
+        val_returns = self.val_returns_pct @ chromosome
         return_ = (1 + val_returns).prod() - 1 # Validation portfolio returns.
         fit = (1 - self.delta)*return_ - self.delta * risk # Fitness.
         
@@ -137,6 +128,55 @@ class EA:
             return -np.inf, 0, 0  # Invalid chromosome
             
         return fit, return_, risk
+    
+
+
+    def batch_fitness(self, group):
+        """
+        Vectorized fitness calculation for a group of chromosomes.
+        
+        Args:
+            group (np.ndarray): Shape (n_chromosomes, n_assets + 1).
+        
+        Returns:
+            np.ndarray: Fitness values for each chromosome.
+        """
+
+        self.fitness_evaluations += group.shape[0]
+
+        chromosomes = group[:, :-1]  # remove tournament gene
+        n = chromosomes.shape[0]
+
+        # Validation returns matrix (T, n_assets)
+        R = self.val_returns_pct  # shape (T, A)
+        
+        # === Compute portfolio returns for all chromosomes ===
+        # Resulting shape: (T, n_chromosomes)
+        val_returns = R @ chromosomes.T
+
+        # Portfolio total return (1 + r₁)(1 + r₂)... - 1, vectorized
+        cumulative_returns = np.prod(1 + val_returns, axis=0) - 1  # shape: (n_chromosomes,)
+        
+        # === Compute volatility ===
+        # portfolio variance: x.T Σ x for each x
+        # Vectorized as diag(X @ Σ @ X.T)
+        cov = self.cov_matrix
+        risks = np.sqrt(252 * np.einsum('ij,jk,ik->i', chromosomes, cov, chromosomes))  # shape: (n_chromosomes,)
+
+        # === Fitness calculation ===
+        fitness = (1 - self.delta) * cumulative_returns - self.delta * risks
+
+        # === Penalize overweight assets ===
+        excess = np.clip(chromosomes - self.max_w, 0, None)
+        penalties = 40 * excess.sum(axis=1)  # shape (n,)
+        fitness -= penalties
+
+        # === Hard constraint: max risk ===
+        if self.max_risk is not None:
+            invalid = risks > self.max_risk
+            fitness[invalid] = -np.inf
+
+        return fitness
 
     def get_fitness(self, group):
         """
@@ -148,7 +188,7 @@ class EA:
         Returns:
         - np.ndarray: Fitness values.
         """
-        return np.array([self.fitness(x)[0] for x in group])
+        return self.batch_fitness(group)
 
     def normalize(self, chromosome):
         """
@@ -178,7 +218,7 @@ class EA:
         """
         population = np.empty([self.pop_size, self.n_assets + 1])
     
-        for k in trange(self.pop_size, desc="Initializing population", leave=False):
+        for k in range(self.pop_size):
             attempts = 0
             while True:
                 # Generate random weights between 0 and max_w
@@ -294,7 +334,7 @@ class EA:
         Args:
         - iters (int): Number of generations to run.
         """
-        for _ in trange(iters, desc=f"Evolving population", leave=False):
+        for _ in range(iters):
             parents = self.parent_selection() # Select parents.
             offspring = np.empty([self.lambda_, self.n_assets+1])
             mutated = np.empty(offspring.shape)
@@ -305,7 +345,7 @@ class EA:
                                                                    parents[i+1])
                 mutated[i], mutated[i+1] = self.mutation(offspring[i]), \
                                            self.mutation(offspring[i+1])
-            mutated_fit = self.get_fitness(mutated[:,:-1]) # Get their fitness.
+            mutated_fit = self.get_fitness(mutated) # Get their fitness.
 
             ### Update population.
             k = max(2, int(np.ceil(np.sum(mutated[:, -1])))) # Tournament size.
@@ -396,7 +436,7 @@ class EA:
         return df
 
 def random_search(closing_prices, num_chromosomes=100_000, alpha=0.3, beta=0.06,
-                       max_attempts=10_000, verbose=True):
+                       max_attempts=10_000):
     """
     Searches for the single best random portfolio under constraints on max weight and risk,
     by sampling random portfolios and selecting the one with highest expected return.
@@ -407,7 +447,6 @@ def random_search(closing_prices, num_chromosomes=100_000, alpha=0.3, beta=0.06,
         alpha (float): Max weight allowed per asset. Default is 0.3.
         beta (float): Max allowed portfolio variance. Default is 0.06.
         max_attempts (int): Max tries per chromosome to find valid sample. Default is 10,000.
-        verbose (bool): Whether to show progress.
 
     Returns:
         np.ndarray: Best chromosome (1D array of asset weights).
@@ -420,12 +459,7 @@ def random_search(closing_prices, num_chromosomes=100_000, alpha=0.3, beta=0.06,
     best_chromosome = None
     best_return = -np.inf
 
-    if verbose:
-        iterator = trange(num_chromosomes, desc="Searching for best portfolio")
-    else:
-        iterator = range(num_chromosomes)
-
-    for _ in iterator:
+    for _ in range(num_chromosomes):
         for _ in range(max_attempts):
             chromosome = np.random.rand(num_genes)
             chromosome /= chromosome.sum()

@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from . import data as dta
-from tqdm.notebook import trange
 from .algorithms import EA
 
 def MBF(train_data, test_data, runs=10, generations=50, **kwargs):
@@ -23,9 +22,8 @@ def MBF(train_data, test_data, runs=10, generations=50, **kwargs):
     
     actual_returns = np.empty(runs)
     risks = np.empty(runs)
-    cov_matrix = train_data.pct_change().dropna().cov()
     
-    for i in trange(runs, desc="Finding MBF"):
+    for i in range(runs):
         ea = EA(train_data, **kwargs)
         ea.run(generations)
 
@@ -36,7 +34,7 @@ def MBF(train_data, test_data, runs=10, generations=50, **kwargs):
         actual_returns[i] = actual_return
         risks[i] = risk
 
-    print(f'Mean Return at the end of testing period: {round(100 * actual_returns.mean(), 2}%')
+    print(f'Mean Return at the end of testing period: {round(100 * actual_returns.mean(), 2)}%')
     print(f'Mean Risk: {round(100 * risks.mean(), 2)}%')
 
     return actual_returns, risks
@@ -70,10 +68,9 @@ def AES_SR(train_data, test_data, solution=(14, 16), runs=10,
     risks = np.empty(runs)
     fails = 0
 
-    # Covariance matrix for risk estimation
-    cov_matrix = train_data.pct_change().dropna().cov()
+    actual_return, estimated_risk = np.nan, np.nan  # safe defaults
 
-    for i in trange(runs, desc="Finding AES and SR"):
+    for i in range(runs):
         ea = EA(train_data, **kwargs)
         gen = 0
 
@@ -128,8 +125,8 @@ def AES_SR(train_data, test_data, solution=(14, 16), runs=10,
         y_min = min_return - y_margin
         y_max = max_return + y_margin
         
-        plt.hlines(solution[0], x_min, x_max, colors="orange", linestyles=":", label="success zone")
-        plt.vlines(solution[1], y_min, y_max, colors="orange", linestyles=":")
+        plt.hlines(solution[0], x_min, x_max, color="orange", linestyle=":", label="success zone")
+        plt.vlines(solution[1], y_min, y_max, color="orange", linestyle=":")
         
         plt.xlim(x_min, x_max)
         plt.ylim(y_min, y_max)
@@ -176,7 +173,7 @@ def asset_robustness(data, sample_size=40, runs=20, generations=50,
     returns = np.empty(runs)
     risks = np.empty(runs)
 
-    for i in trange(runs, desc="Running robustness experiment"):
+    for i in range(runs):
         
         # Sample a random subset of assets
         data_i = data.sample(sample_size, axis=1)
@@ -253,7 +250,9 @@ def time_robustness(data, periods=5, generations=50,
     ew_returns = []
     ew_risks = []
 
-    chunks = np.array_split(data, periods)
+    chunk_size = len(data) // periods
+    chunks = [data.iloc[i*chunk_size : (i+1)*chunk_size] for i in range(periods - 1)]
+    chunks.append(data.iloc[(periods - 1)*chunk_size :])  # final chunk includes remainder
 
     for i, chunk in enumerate(chunks):
         print(f'\nPeriod {i + 1}/{periods}')
