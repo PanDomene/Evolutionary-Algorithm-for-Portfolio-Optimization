@@ -377,10 +377,10 @@ class EA:
             pd.Series: Cumulative return time series.
         """
 
-        returns = test_data.pct_change().dropna()
+        returns = test_data.pct_change().dropna().values  # Daily returns
         port_returns = returns @ chrom
         cumulative = (1 + port_returns).cumprod() - 1
-        actual_return = cumulative.iloc[-1]
+        actual_return = cumulative[-1]
 
         return actual_return, cumulative
 

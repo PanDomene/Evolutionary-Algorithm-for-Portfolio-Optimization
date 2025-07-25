@@ -102,8 +102,8 @@ def AES_SR(train_data, test_data, solution=(14, 16), runs=10,
     print(f'SR: {successes / runs:.2f}')
 
     if plot:
-        c1 = "red"
-        c2 = "steelblue"
+        c1 = "limegreen"  # color for successful runs
+        c2 = "gray"  # color for failed runs
         colors = [c1 if (ret > solution[0] and rsk < solution[1]) 
                   else c2 for ret, rsk in zip(returns, risks)]
         
@@ -125,8 +125,8 @@ def AES_SR(train_data, test_data, solution=(14, 16), runs=10,
         y_min = min_return - y_margin
         y_max = max_return + y_margin
         
-        plt.hlines(solution[0], x_min, x_max, color="orange", linestyle=":", label="success zone")
-        plt.vlines(solution[1], y_min, y_max, color="orange", linestyle=":")
+        plt.hlines(solution[0], x_min, solution[1], color="red", linestyle=":", label="success zone")
+        plt.vlines(solution[1], solution[0], y_max, color="red", linestyle=":")
         
         plt.xlim(x_min, x_max)
         plt.ylim(y_min, y_max)
