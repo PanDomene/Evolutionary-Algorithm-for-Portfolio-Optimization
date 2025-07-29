@@ -28,8 +28,10 @@ def MBF(train_data, test_data, runs=10, generations=50, verbose=True, **kwargs):
         ea.run(generations)
 
         # Evaluate best individual on the test set
-        actual_return, _ = ea.test_returns(test_data, ea.best_chrom)
-        risk = ea.volatility(ea.best_chrom)
+        best = ea.best_chrom
+        actual_return, _ = ea.test_returns(test_data, best)
+        cov_matrix = train_data.pct_change().dropna().cov().values
+        risk = np.sqrt(252 * best @ cov_matrix @ best)
 
         actual_returns[i] = actual_return
         risks[i] = risk
@@ -69,6 +71,7 @@ def AES_SR(train_data, test_data, solution=(14, 16), runs=10,
     fails = 0
 
     actual_return, estimated_risk = np.nan, np.nan  # safe defaults
+    cov_matrix = train_data.pct_change().dropna().cov().values
 
     for i in range(runs):
         ea = EA(train_data, **kwargs)
@@ -77,11 +80,11 @@ def AES_SR(train_data, test_data, solution=(14, 16), runs=10,
         while gen < max_gens:
             ea.run(1)
             
+            best = ea.best_chrom
             # Evaluate return on test set
-            actual_return, _  = ea.test_returns(test_data, ea.best_chrom) 
+            actual_return  = 100 * ea.test_returns(test_data, best)[0] 
             # Evaluate risk on training set
-            estimated_risk = ea.volatility(ea.best_chrom)
-            
+            estimated_risk = 100 * np.sqrt(252 * best @ cov_matrix @ best)
             if actual_return >= solution[0] and estimated_risk <= solution[1]:
                 break  # Found valid solution
 
@@ -131,6 +134,7 @@ def AES_SR(train_data, test_data, solution=(14, 16), runs=10,
         plt.xlim(x_min, x_max)
         plt.ylim(y_min, y_max)
         
+        plt.xticks(rotation=45)
         plt.legend(loc="upper right")
         plt.show()
         
@@ -138,7 +142,7 @@ def AES_SR(train_data, test_data, solution=(14, 16), runs=10,
 
 
 
-def asset_robustness(data, sample_size=40, runs=20, generations=50, 
+def asset_robustness(data, sample_size=50, runs=20, generations=50, 
                      test_split=0.3, validation_split=0.3, **kw):
     """
     Evaluate the robustness of the evolutionary algorithm (EA) across 
@@ -183,18 +187,11 @@ def asset_robustness(data, sample_size=40, runs=20, generations=50,
         train_data = data_i[:split]
         test_data = data_i[split:]
 
-        # Train EA (let it do its own train/validation split)
-        ea = EA(train_data, validation_split=validation_split, **kw)
-        ea.run(generations)
 
-        # Evaluate performance
-        test_return, _ = ea.test_returns(test_data, ea.best_chrom)
-        train_risk = ea.volatility(ea.best_chrom)
+        ret, rsk = MBF(train_data, test_data, generations=generations, verbose=False)
 
-        returns[i] = 100 * test_return
-        risks[i] = 100 * train_risk  # scale to percent
-
-        ea.plot_max_fitness()
+        returns[i] = 100 * ret.mean()  # scale to percent
+        risks[i] = 100 * rsk.mean()  # scale to percent
 
     return returns, risks
 
@@ -247,15 +244,14 @@ def time_robustness(data, periods=5, generations=50,
     """
     ea_returns = []
     ea_risks = []
-    ew_returns = []
-    ew_risks = []
+    ew_returns = [] # Equal Weight Portfolio
+    ew_risks = [] # Equal Weight Portfolio
 
     chunk_size = len(data) // periods
     chunks = [data.iloc[i*chunk_size : (i+1)*chunk_size] for i in range(periods - 1)]
     chunks.append(data.iloc[(periods - 1)*chunk_size :])  # final chunk includes remainder
 
-    for i, chunk in enumerate(chunks):
-        print(f'\nPeriod {i + 1}/{periods}')
+    for chunk in chunks:
 
         # Train/test split (70/30 by default)
         split = int((1 - test_split) * len(chunk))
@@ -265,8 +261,10 @@ def time_robustness(data, periods=5, generations=50,
         # === Evolutionary Algorithm ===
         ea = EA(train_data, **kw)
         ea.run(generations)
-        ret = 100 * ea.test_returns(test_data, ea.best_chrom)[0]
-        risk = 100 * ea.volatility(ea.best_chrom)
+        best = ea.best_chrom
+        ret = 100 * ea.test_returns(test_data, best)[0]
+        cov_matrix = train_data.pct_change().dropna().cov().values
+        risk = 100 * np.sqrt(252 * best @ cov_matrix @ best)
         ea_returns.append(ret)
         ea_risks.append(risk)
 
@@ -274,17 +272,9 @@ def time_robustness(data, periods=5, generations=50,
         n = train_data.shape[1]
         ew_weights = np.ones(n) / n
         ew_ret = 100 * ea.test_returns(test_data, ew_weights)[0]
-        cov_matrix = train_data.pct_change().dropna().cov().values
         ew_risk = 100 * np.sqrt(252 * ew_weights @ cov_matrix @ ew_weights.T)
         ew_returns.append(ew_ret)
         ew_risks.append(ew_risk)
-
-        # Optional: plot EA fitness
-        ea.plot_max_fitness(label=f'{chunk.index[0].date()}–{chunk.index[-1].date()}')
-
-    plt.legend(bbox_to_anchor=(1.0, 1.02))
-    plt.tight_layout()
-    plt.show()
 
     df = pd.DataFrame({
             "EA_returns": np.array(ea_returns),
