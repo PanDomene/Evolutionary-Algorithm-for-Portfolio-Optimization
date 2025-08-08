@@ -1,149 +1,160 @@
-# 🧬 Evolutionary Algorithm for Portfolio Optimization 🧬
+# 🧬 Evolutionary Portfolio Optimization with Risk Constraints
 
-This project implements an **evolutionary algorithm** to optimize a financial investment portfolio, aiming to **maximize expected annual returns** while keeping risk under control. The model balances **risk and return** through a flexible and customizable framework inspired by Markowitz's mean-variance model, enhanced with evolutionary computation strategies.
+This project implements an **evolutionary algorithm (EA)** for **portfolio optimization**, designed to find asset allocations that maximize return under **realistic constraints** like maximum volatility and weight per asset. It includes full benchmarking against traditional portfolio strategies.
 
-## ✨ Objective
-
-- **Maximize portfolio returns** using a custom made evolutionary algorithm.
-- **Limit risk** based on historical volatility.
-- **Ensure diversification** by setting constraints on the proportion invested in each asset.
-- **Compare portfolio performance** against real-world financial benchmarks (e.g., Vanguard ETFs).
-
-## 🧠 Methodology
-
-### 1. 📈 Data Collection
-
-- Historical closing prices from **Yahoo Finance** API.
-- Assets include:
-  - Mexican and international stocks traded on the BMV and SIC.
-  - Government instruments: **CETES**, **BONDDIA**, and **ENERFIN**.
-- Timeframe: **January 2021 – April 2024**.
-
-### 2. 💪 Fitness Function
-
-```
-f(w) = (1 - δ) * Return(w) - δ * Risk(w)
-```
-
-- `δ` is a risk aversion parameter (0 ≤ δ ≤ 1).
-- `Return(w)` is the expected annual return.
-- `Risk(w)` is the annualized portfolio volatility (from the covariance matrix).
-- **Penalties** apply when allocation limits are violated.
-
-### 3. 🧬 Evolutionary Algorithm
-
-- **Chromosome**: Real-valued vector of asset weights.
-- **Operators**:
-  - Selection: Uniform for parents, adaptive tournament for survivors.
-  - Recombination: BLX-α crossover.
-  - Mutation: Gaussian perturbation.
-- **Constraints**:
-  - Sum of weights = 1
-  - Each weight ≤ `w_max` (default 0.07)
-
-## ⚙ Parameters Used
-
-| Parameter           | Value |
-| ------------------- | ----- |
-| Population size (μ) | 1000  |
-| Offspring (λ)       | 6000  |
-| Mutation rate       | 0.05  |
-| Mutation std dev    | 0.1   |
-| Recombination α     | 0.5   |
-| Risk aversion δ     | 0.51  |
-| Max asset weight    | 0.07  |
-
-## 📈 Results
-
-- Outperformed **VMEX ETF** benchmark in **76.7%** of runs.
-- Average return: **\~64.5%**
-- Average risk: **\~25.7%**
-- The best portfolio: **45.78% return** with **13.5% risk**.
-
-## 💡 Key Insights
-
-- A moderate δ (\~0.5) offers the best trade-off between return and risk.
-- Excessive diversification (very low `w_max`) reduces performance.
-- The algorithm is robust to different subsets of assets and time periods.
-
-## 📐 Evaluation Metrics
-
-- **MBF (Mean Best Fitness)**
-- **SR (Success Rate)** – % of runs that beat the benchmark.
-- **AES (Average Evaluations to Success)**
-
-## 🛠 Tech Stack
-
-- Python
-- NumPy, pandas, matplotlib
-- `yfinance` for data collection
+---
 
 ## 📁 Project Structure
 
 ```
-portfolio-optimization/
-├── data/
+.
+├── data/                      # Input datasets (adjusted close prices)
+├── EA_funcs/                 # Modular EA package
+│   ├── __init__.py
+│   ├── algorithms.py         # EA class and benchmarks
+│   ├── data.py               # Data loading & preparation
+│   ├── metrics.py            # Performance evaluation
+│   ├── testing.py            # Robustness checks
 ├── notebooks/
-├── EA_funcs/
+│   ├── EDA.ipynb             # Exploratory Data Analysis
+│   ├── benchmarks.ipynb      # Strategy comparison & performance
 ├── results/
+│   ├── results.ipynb         # Final visualizations and discussion
 ├── requirements.txt
-├── README.md
-└── README_es.md
+├── setup.py                  # To install EA_funcs as a package
+└── README.md
 ```
 
-## ▶️ How to Run
+---
 
-1. Install dependencies:
+## 📦 Installation
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/your-username/your-repo.git
+cd your-repo
+```
+
+### 2. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-2. Install module:
+### 3. Install the `EA_funcs` package
 
 ```bash
-pip install -e . # -e if you want to edit the source code.
+pip install -e .
 ```
 
-4. Import module as:
+### 4. Download the data
+
+The project automatically fetches historical daily closing prices for a predefined universe (e.g., S&P 100):
+
+```bash
+python -m EA_funcs.data
+```
+
+This will save the dataset to `data/closing_prices.csv`.
+
+---
+
+## 🚀 Quick Start (Python)
 
 ```python
-import EA_funcs as ea # or any other alias 
+from EA_funcs.data import load_data
+from EA_funcs.algorithms import EA
+
+# Load the dataset
+data = load_data("data/closing_prices.csv")
+
+# Initialize and run the EA optimizer
+ea = EA(data, max_w=0.1, max_risk=0.2)
+ea.run(iters=100)
+
+# Display best portfolio
+print(ea.portfolio())
 ```
 
-4. For a given set of `tickers` and `start`/`end` dates, load the closing prices with
+---
 
-```python
-closing_prices = ea.get_historical_data(tickers, start, end)
-```
+## 📊 Benchmarking
 
-5. Initialize and run the evolutionary algorithm:
+Run `notebooks/benchmarks.ipynb` to compare the EA optimizer with:
 
-```python
-ev_alg = ea.EA(closing_prices) # Set any optional parameters
-ev_alg.run() 
-```
+- 📏 Equal Weight (EW)
+- 🔁 Inverse Volatility
+- 🧮 Minimum Variance (long-only)
+- 🌲 Hierarchical Risk Parity
+- 🎯 Random constrained portfolios
 
-## 📌 Future Work
+Each strategy is implemented in `EA_funcs.algorithms`.
 
-- Hyperparameter tuning with grid/random search.
-- Real-time rebalancing strategies.
-- Extension to other asset classes and international markets.
-- Deploying a dashboard for visualization.
+---
 
-## 📚 References
+## 🛠 EA Parameters
 
-- Markowitz, H. (1952). Portfolio Selection.
-- Eiben & Smith (2015). Introduction to Evolutionary Computing.
-- Yahoo Finance API via `yfinance`
+| Argument         | Description                          | Default |
+|------------------|--------------------------------------|---------|
+| `pop_size`       | Population size                      | 100     |
+| `lambda_`        | Offspring per generation             | 600     |
+| `p_m`            | Mutation rate per gene               | 0.01    |
+| `sigma`          | Mutation step size                   | 0.1     |
+| `delta`          | Return-risk tradeoff weight          | 0.5     |
+| `alpha`          | BLX-α crossover parameter            | 0.5     |
+| `max_w`          | Max weight per asset                 | 0.1     |
+| `max_risk`       | Max allowed portfolio volatility     | None    |
+| `validation_split` | Data split for validation          | 0.3     |
+
+---
+
+## 🧾 Key Results
+
+The evolutionary algorithm consistently outperformed benchmark strategies in cumulative returns while satisfying strict constraints on volatility and maximum weight per asset. Specifically:
+
+- ⚖️ Achieved **higher out-of-sample cumulative returns** than traditional strategies like Minimum Variance and Equal Weight, beating the benchmark on 91% of runs.
+- 📉 Maintained **risk below the specified `max_risk` threshold**, validating the effectiveness of the volatility constraint.
+- 🧬 Showed **stable convergence patterns** across runs, with meaningful population diversity and consistent fitness improvements.
+
+See `results/results.ipynb` for detailed performance metrics, plots, and allocation visualizations.
+
+---
+
+## 🧪 Robustness & Testing Highlights
+
+Several experiments were conducted to test the robustness of the optimizer:
+
+- ✅ **Repeatability across random seeds:** Consistent final performance with low variance in outcomes.
+- 📉 **Constraint adherence:** All portfolios respected the `max_w` (max asset weight) and `max_risk` (max volatility) limits.
+- 🔍 **Ablation testing:** EA performance degraded gracefully when components like mutation or diversity were restricted or amplified, confirming diversification is the better strategy, if done inmoderation.
+- 🌐 **Robustness to Seach Space:** Outperformed the EW portfolio for different asset collections in 92 out of 100 runs, achieving an average relative increase of 18.7% in returns and 3.4% in risk compared to the EW portfolio. 
+
+All robustness tools and tests are implemented in `EA_funcs.testing` and documented in the `results/results.ipynb` notebooks.
 
 
-## TODO
+## 🔮 Future Work
 
-- Make readme in spanish.
-- Update results.ipynb after updating metrics, and try to beat the benchmark.
-- Update results in readme.md after the previous point.
-- Add colaborators
-- Delete `Proyecto_Computo_Evolutivo.ipynb` when done.
-- Analyze whether portfolio risk during training correlates to volatility during testing period.
-- Make hypothesis tests to check if the EA trully does better.
+- Support multi-objective optimization (e.g., Pareto front)
+- Incorporate transaction cost modeling
+- Add dynamic rebalancing and walk-forward validation
+- Streamlit dashboard for interactive use
+
+---
+
+## 📜 License
+
+Feel free to use, fork, and contribute!
+
+---
+
+## 👤 Author
+
+**Juan Domene Ashida**  
+
+📍 Guadalajara, MX
+🧠 Physicist & MDS Candidate
+🍞 Co-founder at a local bakery business
+💼 Aspiring Data Scientist
+
+---
