@@ -119,6 +119,7 @@ class EA:
         # Return from validation data
         val_returns = self.val_returns_pct @ chromosome
         return_ = (1 + val_returns).prod() - 1 # Validation portfolio returns.
+        print(f"Return: {return_:.4f}, Risk: {risk:.4f}")
         fit = (1 - self.delta)*return_ - self.delta * risk # Fitness.
         
         if np.any(chromosome > self.max_w): # weight penalization
@@ -217,7 +218,7 @@ class EA:
                         represents a valid portfolio (chromosome) plus the self-adaptive gene.
         """
         population = np.empty([self.pop_size, self.n_assets + 1])
-    
+        fails = 0
         for k in range(self.pop_size):
             attempts = 0
             while True:
@@ -235,16 +236,21 @@ class EA:
     
                 attempts += 1
                 if attempts > 500:
-                    print(f"[WARNING] Could not initialize valid chromosome #{k} after 500 attempts.")
-                    break
-                    
+                    # if too many attempts, return equal weights + random 
+
+                    chromosome = np.ones(self.n_assets) / self.n_assets
+                    chromosome = chromosome + np.random.normal(scale=self.sigma, size=self.n_assets)
+                    chromosome = self.normalize(chromosome)
+                    fails += 1
             # Append self-adaptive gene for tournament size
             ki = np.random.uniform(0, 1)
             chromosome = np.append(chromosome, ki)
     
             # Store valid or last attempted chromosome (even if invalid)
             population[k] = chromosome
-    
+        if fails:
+            print(f"Warning: {fails} chromosomes were generated as equal weights + noise due to too many attempts.")
+
         return population
 
     def parent_selection(self):
